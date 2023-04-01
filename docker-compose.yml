@@ -1,0 +1,73 @@
+version: '3.9'
+
+volumes:
+  grafana:
+  etc_grafana:
+  prometheus_data:
+
+services:
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - grafana:/var/lib/grafana:rw
+      - etc_grafana:/etc/grafana:rw
+    ports:
+      - "3000:3000"
+    networks:
+      monitoring:
+    deploy:
+      placement:
+        constraints:
+          - "node.labels.TAG==prod"
+    healthcheck:
+      test: wget --no-cache --spider localhost:3000 || echo 1
+      interval: 30s
+      timeout: 3s
+      retries: 12
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      monitoring:
+    deploy:
+      mode: global
+    healthcheck:
+      test: wget --no-cache --spider localhost:9100/metrics || echo 1
+      interval: 30s
+      timeout: 3s
+      retries: 12
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - /var/lib/docker/volumes/monitoring_prometheus_data/_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      monitoring:
+    deploy:
+      placement:
+        constraints:
+          - "node.labels.TAG==prod"
+    healthcheck:
+      test: wget --no-cache --spider localhost:9090/metrics || echo 1
+      interval: 30s
+      timeout: 3s
+      retries: 12
+
+networks:
+  monitoring:
