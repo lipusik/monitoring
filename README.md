@@ -7,4 +7,4 @@ This is example how to use stack grafana+prometheus+node_exporter in docker swar
 docker stack deploy -c docker-compose.yml monitoring
 ```
 
-*After this you should initialize docker swarm
+*Before this command you should initialize docker swarm
